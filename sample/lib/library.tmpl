@@ -1,0 +1,6 @@
+{{define "library"}}
+{{- range .}}
+{{.title}}{{with .collection}} (Part of {{.}} collection){{end}}
+Written by {{.authors | join ","}}
+{{end -}}
+{{end}}
