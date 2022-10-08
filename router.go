@@ -89,7 +89,7 @@ func main() {
 			variablesStringBuilder.WriteString(result.String() + "\r\n")
 		}
 		fmt.Println(variablesStringBuilder.String())
-		context.JSON(http.StatusOK, gin.H{"test": variablesStringBuilder.String()})
+		context.JSON(http.StatusOK, variablesStringBuilder.String())
 	})
 
 	router.Run()
