@@ -1,0 +1,10 @@
+version: 1.0.0
+books:
+  - title: Birth
+    collection: My Life
+    authors:
+    - A. Mitchel
+    - F. Lu
+  - title: Io ucciso
+    authors:
+      - G. Faletti

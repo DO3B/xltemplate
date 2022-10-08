@@ -1,6 +1,6 @@
 - type: GceDoc
   packages:
-  {{- range . }}
+  {{- range .Packages }}
   - name: {{.Name}}
     appId: {{.AppId}}
   {{- end }}

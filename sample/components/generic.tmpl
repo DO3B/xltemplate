@@ -1,0 +1,17 @@
+- type: {{.Type}}
+  deploy:
+    configuration: {{.Deploy.Configuration}}
+  release:
+    configuration: {{.Release.Configuration}}
+    account: {{.Release.Account}}
+  envs:
+  {{- range .Environments}}
+    {{.Name}}:
+      {{.Trigram}}:
+        templateName: "{{.TemplateName}}"
+  {{- end }}
+  packages:
+  {{- range .Packages }}
+  - name: {{.Name}}
+    appId: {{.AppId}}
+  {{- end }}

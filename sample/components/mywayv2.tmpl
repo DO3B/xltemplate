@@ -1,6 +1,14 @@
 - type: MyWay V2
+  deploy: XLD-BIS10
+  release:
+    configuration: XLR-BIS10
+    account: SVCPBIS10BIXLRASCODE
+  envs:
+    verification:
+      VFO:
+        templateName: "[MyWay V2] Verification (VFO) - LIST"
   packages:
-  {{- range . }}
+  {{- range .Packages }}
   - name: {{.Name}}
     appId: {{.AppId}}
   {{- end }}
