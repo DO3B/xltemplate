@@ -1,16 +1,14 @@
-package cmd
+package main
 
 import (
 	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 
-	// "path/filepath"
 	"strings"
 	"text/template"
 
@@ -132,10 +130,11 @@ func main() {
 	// parsedFiles = append(parsedFiles, *sourceFile)
 	if *patternDirectory != "" {
 		patternFolder, err := os.Open(*patternDirectory)
-		defer patternFolder.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer patternFolder.Close()
+
 		patterns, err := patternFolder.Readdir(-1)
 		if err != nil {
 			log.Fatal(err)
@@ -203,11 +202,11 @@ func main() {
 	//Get sourcefile name
 	templateName := filepath.Base(*sourceFile)
 	//Create the main template from the sourceFile
-	b, err := ioutil.ReadFile(*sourceFile)
+	b, err := os.ReadFile(*sourceFile)
 	if err != nil {
 		panic(err)
 	}
-	tpl.New(templateName).Parse(string(b))
+	tpl.New(templateName).Option("missingkey=error").Parse(string(b))
 
 	//Add patterns to template
 	_, err = tpl.ParseFiles(parsedFiles...)

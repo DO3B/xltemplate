@@ -1,0 +1,16 @@
+image: golang:latest
+
+stages:
+- build
+
+variables:
+  OUTPUT_NAME: bin
+
+build:
+  stage: build
+  script:
+  - chmod +x scripts/compile.sh
+  - scripts/compile.sh
+  artifacts:
+    paths:
+    - $OUTPUT_NAME
