@@ -1,0 +1,10 @@
+# https://taskfile.dev
+version: '3'
+
+tasks:
+  build:
+    vars:
+      OUTPUT_PATH: bin/xltemplate
+    cmds:
+      - go build -v -o {{.OUTPUT_PATH}} do3b/xltemplate
+      - chmod +x {{.OUTPUT_PATH}}
