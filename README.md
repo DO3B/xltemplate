@@ -1,0 +1,1 @@
+This binary was greatly inspired by Kustomize remote resources management.

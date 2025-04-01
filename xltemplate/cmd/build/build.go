@@ -1,6 +1,7 @@
 package build
 
 import (
+	"do3b/xltemplate/api/loader"
 	"do3b/xltemplate/api/templateengine"
 	"fmt"
 	"io"
@@ -8,43 +9,95 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/imdario/mergo"
 	"github.com/roboll/helmfile/pkg/maputil"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/kustomize/api/ifc"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 type buildFlags struct {
-	variables string
-	source    string
-	patterns  string
-	output    string
+	Variables string
+	Source    string
+	Patterns  []string
+	Output    string
 }
 
 // NewCmdVersion makes a new version command.
-func NewCmdVersion(w io.Writer) *cobra.Command {
-	opts := &buildFlags{}
+func NewCmdVersion(fileSystem filesys.FileSystem, w io.Writer) *cobra.Command {
+	opts := buildFlags{}
 
 	cmd := cobra.Command{
 		Use:     "build",
 		Short:   "Build a template file",
 		Long:    `Build a template file from a source file, patterns and a set of variables.`,
-		Example: `xltemplate build`,
+		Example: `xltemplate build xltemplate.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return Run(*opts, w)
+			xltemplateFile := buildFlags{}
+			if args[0] != "" {
+				file, err := os.Open(args[0])
+				if err != nil {
+					fmt.Println(err)
+				}
+				defer file.Close()
+				fileinfo, err := file.Stat()
+				if err != nil {
+					fmt.Println(err)
+				}
+				filesize := fileinfo.Size()
+				buffer := make([]byte, filesize)
+				file.Read(buffer)
+
+				yaml.Unmarshal(buffer, &xltemplateFile)
+				slog.Debug("Xltemplate file content", "xltemplateFile", xltemplateFile)
+			}
+
+			// Merging the content of the xltemplate file with the command line arguments
+			if err := mergo.Merge(&opts, xltemplateFile, mergo.WithAppendSlice); err != nil {
+				slog.Error("Error merging xltemplate file with command line arguments", "error", err)
+			}
+
+			slog.Debug("Executing build command with options", "opts", opts)
+			return Run(opts, fileSystem, w)
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.variables, "variables", "", "Variables YAML file")
-	cmd.Flags().StringVar(&opts.source, "source", "", "Source file path to parse")
-	cmd.Flags().StringVar(&opts.patterns, "patterns", "", "Path to patterns directory")
-	cmd.Flags().StringVar(&opts.output, "output", "", "Output file path (optional - writes to standard output otherwise)")
+	cmd.Flags().StringVar(&opts.Variables, "variables", "", "Variables YAML file")
+	cmd.Flags().StringVar(&opts.Source, "source", "", "Source file path to parse")
+	cmd.Flags().StringArrayVar(&opts.Patterns, "patterns", []string{}, "Path to patterns directory")
+	cmd.Flags().StringVar(&opts.Output, "output", "", "Output file path (optional - writes to standard output otherwise)")
 	return &cmd
 }
 
-func Run(opts buildFlags, w io.Writer) error {
+func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
+	var err error
+
+	patterns := []string{}
+	pattern_loaders := []ifc.Loader{}
+	for _, pattern := range opts.Patterns {
+		pattern_loader, err := loader.NewLoader(
+			loader.RestrictionNone,
+			pattern,
+			fileSystem,
+		)
+		if err != nil {
+			slog.Error("Error loading patterns", "error", err)
+			return err
+		}
+
+		patterns = append(patterns, readPatternDirectory(pattern_loader.Root())...)
+		pattern_loaders = append(pattern_loaders, pattern_loader)
+	}
+
+	if err != nil {
+		slog.Error("Error loading patterns", "error", err)
+		return err
+	}
+
 	variables := map[string]interface{}{}
-	if opts.variables != "" {
-		file, err := os.Open(opts.variables)
+	if opts.Variables != "" {
+		file, err := os.Open(opts.Variables)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -66,19 +119,26 @@ func Run(opts buildFlags, w io.Writer) error {
 	}
 
 	source := ""
-	if opts.source != "" {
-		b, err := os.ReadFile(opts.source)
+	if opts.Source != "" {
+		b, err := os.ReadFile(opts.Source)
 		if err != nil {
 			panic(err)
 		}
 		source = string(b)
 	}
 
-	result := templateengine.Parse(opts.source, variables, source, readPatternDirectory(opts.patterns))
+	result, err := templateengine.Parse(opts.Source, variables, source, patterns)
+	for _, pattern_loader := range pattern_loaders {
+		pattern_loader.Cleanup()
+	}
+	if err != nil {
+		panic(err)
+	}
+
 	var output = os.Stdout
-	if opts.output != "" {
-		slog.Info("Writing to file", "file", opts.output)
-		newFile, err := os.Create(opts.output)
+	if opts.Output != "" {
+		slog.Info("Writing to file", "file", opts.Output)
+		newFile, err := os.Create(opts.Output)
 		if err != nil {
 			panic(err)
 		}

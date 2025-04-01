@@ -1,0 +1,6 @@
+source: demo.tmpl
+variables: variables.yaml
+patterns:
+- https://github.com/DO3B/xltemplate///sample/lib/
+- lib/
+output: template.yaml

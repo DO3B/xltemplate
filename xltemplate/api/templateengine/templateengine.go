@@ -9,7 +9,9 @@ import (
 	"github.com/Masterminds/sprig/v3"
 )
 
-func Parse(templateName string, variables map[string]interface{}, source string, patterns []string) string {
+func Parse(templateName string, variables map[string]interface{}, source string, patterns []string) (string, error) {
+	var err error
+
 	var tpl template.Template
 	slog.Debug("Loading variables from file", "variables", variables)
 	slog.Debug("Loading source file", "source", source)
@@ -31,9 +33,9 @@ func Parse(templateName string, variables map[string]interface{}, source string,
 	tpl.New(templateName).Parse(source)
 
 	// Add patterns to template
-	_, err := tpl.ParseFiles(patterns...)
+	_, err = tpl.ParseFiles(patterns...)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	result := bytes.NewBuffer(nil)
@@ -43,5 +45,5 @@ func Parse(templateName string, variables map[string]interface{}, source string,
 	}
 	slog.Debug("Result", "result", result.String())
 
-	return result.String()
+	return result.String(), nil
 }

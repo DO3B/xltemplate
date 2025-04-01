@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
 var Verbose bool
@@ -33,8 +34,10 @@ from a source file, patterns and a set of variables.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	fileSystem := filesys.MakeFsOnDisk()
+
 	rootCmd.AddCommand(
-		build.NewCmdVersion(os.Stdout),
+		build.NewCmdVersion(fileSystem, os.Stdout),
 		version.NewCmdVersion(os.Stdout),
 	)
 	err := rootCmd.Execute()
