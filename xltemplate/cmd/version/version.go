@@ -21,6 +21,6 @@ func NewCmdVersion(w io.Writer) *cobra.Command {
 }
 
 func Run(w io.Writer) error {
-	fmt.Fprintln(w, "xltemplate version 2.0.0")
+	fmt.Fprintln(w, "v2.0.0")
 	return nil
 }

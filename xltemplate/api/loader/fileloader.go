@@ -14,7 +14,6 @@ import (
 
 	"do3b/xltemplate/api/git"
 
-	"sigs.k8s.io/kustomize/api/ifc"
 	"sigs.k8s.io/kustomize/kyaml/errors"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
@@ -105,6 +104,8 @@ type FileLoader struct {
 
 	// Used to clean up, as needed.
 	cleaner func() error
+
+	FilePath string
 }
 
 // Repo returns the absolute path to the repo that contains Root if this fileLoader was created from a url
@@ -130,14 +131,14 @@ func NewLoaderOrDie(
 		log.Fatalf("unable to make loader at '%s'; %v", path, err)
 	}
 	return newLoaderAtConfirmedDir(
-		lr, root, fSys, nil, git.ClonerUsingGitExec)
+		lr, root, fSys, nil, git.ClonerUsingGitExec, "")
 }
 
 // newLoaderAtConfirmedDir returns a new FileLoader with given root.
 func newLoaderAtConfirmedDir(
 	lr LoadRestrictorFunc,
 	root filesys.ConfirmedDir, fSys filesys.FileSystem,
-	referrer *FileLoader, cloner git.Cloner) *FileLoader {
+	referrer *FileLoader, cloner git.Cloner, filePath string) *FileLoader {
 	return &FileLoader{
 		loadRestrictor: lr,
 		root:           root,
@@ -145,12 +146,13 @@ func newLoaderAtConfirmedDir(
 		fSys:           fSys,
 		cloner:         cloner,
 		cleaner:        func() error { return nil },
+		FilePath:       filePath,
 	}
 }
 
 // New returns a new Loader, rooted relative to current loader,
 // or rooted in a temp directory holding a git repo clone.
-func (fl *FileLoader) New(path string) (ifc.Loader, error) {
+func (fl *FileLoader) New(path string) (*FileLoader, error) {
 	if path == "" {
 		return nil, errors.Errorf("new root cannot be empty")
 	}
@@ -179,14 +181,14 @@ func (fl *FileLoader) New(path string) (ifc.Loader, error) {
 		return nil, err
 	}
 	return newLoaderAtConfirmedDir(
-		fl.loadRestrictor, root, fl.fSys, fl, fl.cloner), nil
+		fl.loadRestrictor, root, fl.fSys, fl, fl.cloner, ""), nil
 }
 
 // newLoaderAtGitClone returns a new Loader pinned to a temporary
 // directory holding a cloned git repo.
 func newLoaderAtGitClone(
 	repoSpec *git.RepoSpec, fSys filesys.FileSystem,
-	referrer *FileLoader, cloner git.Cloner) (ifc.Loader, error) {
+	referrer *FileLoader, cloner git.Cloner) (*FileLoader, error) {
 	cleaner := repoSpec.Cleaner(fSys)
 	err := cloner(repoSpec)
 	if err != nil {
@@ -198,15 +200,10 @@ func newLoaderAtGitClone(
 		cleaner()
 		return nil, err
 	}
-	// We don't know that the path requested in repoSpec
-	// is a directory until we actually clone it and look
-	// inside.  That just happened, hence the error check
-	// is here.
+
+	var filePath string
 	if f != "" {
-		cleaner()
-		return nil, fmt.Errorf(
-			"'%s' refers to file '%s'; expecting directory",
-			repoSpec.AbsPath(), f)
+		filePath = filepath.Base(f)
 	}
 	// Path in repo can contain symlinks that exit repo. We can only
 	// check for this after cloning repo.
@@ -224,6 +221,7 @@ func newLoaderAtGitClone(
 		fSys:           fSys,
 		cloner:         cloner,
 		cleaner:        cleaner,
+		FilePath:       filePath,
 	}, nil
 }
 

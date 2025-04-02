@@ -6,8 +6,8 @@ package loader
 
 import (
 	"do3b/xltemplate/api/git"
+	"log/slog"
 
-	"sigs.k8s.io/kustomize/api/ifc"
 	"sigs.k8s.io/kustomize/kyaml/errors"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
@@ -20,17 +20,24 @@ import (
 // the remote bases will all be root-only restricted.
 func NewLoader(
 	lr LoadRestrictorFunc,
-	target string, fSys filesys.FileSystem) (ifc.Loader, error) {
+	target string, fSys filesys.FileSystem) (*FileLoader, error) {
 	repoSpec, err := git.NewRepoSpecFromURL(target)
 	if err == nil {
 		// The target qualifies as a remote git target.
 		return newLoaderAtGitClone(
 			repoSpec, fSys, nil, git.ClonerUsingGitExec)
 	}
-	root, err := filesys.ConfirmDir(fSys, target)
+	var root filesys.ConfirmedDir
+	if !fSys.IsDir(target) {
+		slog.Debug("toto")
+		root, _, err = fSys.CleanedAbs(target)
+	} else {
+		root, err = filesys.ConfirmDir(fSys, target)
+	}
+
 	if err != nil {
 		return nil, errors.WrapPrefixf(err, ErrRtNotDir.Error()) //nolint:govet
 	}
 	return newLoaderAtConfirmedDir(
-		lr, root, fSys, nil, git.ClonerUsingGitExec), nil
+		lr, root, fSys, nil, git.ClonerUsingGitExec, target), nil
 }

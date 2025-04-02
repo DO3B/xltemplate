@@ -1,4 +1,4 @@
-source: demo.tmpl
+source: https://github.com/DO3B/xltemplate///cmd/sample/demo.tmpl?ref=feature/tentative-gin
 variables: variables.yaml
 patterns:
 - https://github.com/DO3B/xltemplate///sample/lib/

@@ -13,7 +13,6 @@ import (
 	"github.com/roboll/helmfile/pkg/maputil"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
-	"sigs.k8s.io/kustomize/api/ifc"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
 )
 
@@ -35,7 +34,7 @@ func NewCmdVersion(fileSystem filesys.FileSystem, w io.Writer) *cobra.Command {
 		Example: `xltemplate build xltemplate.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			xltemplateFile := buildFlags{}
-			if args[0] != "" {
+			if len(args) > 0 && args[0] != "" {
 				file, err := os.Open(args[0])
 				if err != nil {
 					fmt.Println(err)
@@ -63,10 +62,10 @@ func NewCmdVersion(fileSystem filesys.FileSystem, w io.Writer) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&opts.Variables, "variables", "", "Variables YAML file")
-	cmd.Flags().StringVar(&opts.Source, "source", "", "Source file path to parse")
-	cmd.Flags().StringArrayVar(&opts.Patterns, "patterns", []string{}, "Path to patterns directory")
-	cmd.Flags().StringVar(&opts.Output, "output", "", "Output file path (optional - writes to standard output otherwise)")
+	cmd.Flags().StringVar(&opts.Variables, "variables", "", "variables YAML file")
+	cmd.Flags().StringVar(&opts.Source, "source", "", "source file path to parse")
+	cmd.Flags().StringArrayVar(&opts.Patterns, "patterns", []string{}, "path to patterns directory")
+	cmd.Flags().StringVar(&opts.Output, "output", "", "output file path (optional - writes to standard output otherwise)")
 	return &cmd
 }
 
@@ -74,7 +73,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 	var err error
 
 	patterns := []string{}
-	pattern_loaders := []ifc.Loader{}
+	pattern_loaders := []loader.FileLoader{}
 	for _, pattern := range opts.Patterns {
 		pattern_loader, err := loader.NewLoader(
 			loader.RestrictionNone,
@@ -87,12 +86,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 		}
 
 		patterns = append(patterns, readPatternDirectory(pattern_loader.Root())...)
-		pattern_loaders = append(pattern_loaders, pattern_loader)
-	}
-
-	if err != nil {
-		slog.Error("Error loading patterns", "error", err)
-		return err
+		pattern_loaders = append(pattern_loaders, *pattern_loader)
 	}
 
 	variables := map[string]interface{}{}
@@ -120,14 +114,23 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 
 	source := ""
 	if opts.Source != "" {
-		b, err := os.ReadFile(opts.Source)
+		source_loader, err := loader.NewLoader(
+			loader.RestrictionNone,
+			opts.Source,
+			fileSystem,
+		)
+		if err != nil {
+			panic(err)
+		}
+		b, err := source_loader.Load(source_loader.FilePath)
 		if err != nil {
 			panic(err)
 		}
 		source = string(b)
 	}
 
-	result, err := templateengine.Parse(opts.Source, variables, source, patterns)
+	templateEngine := templateengine.NewTemplateEngine(opts.Source, variables, source, patterns)
+	result, err := templateEngine.Parse()
 	for _, pattern_loader := range pattern_loaders {
 		pattern_loader.Cleanup()
 	}
