@@ -1,6 +1,6 @@
 # XlTemplate
 
-> Originally created by R. Martinelli, maintened by DO3B.
+> Originally created by R. Martinelli, maintained by DO3B.
 
 A Go-based template management tool greatly inspired by Kustomize remote resources management.
 
@@ -29,6 +29,10 @@ Or use Task:
 ```bash
 task build
 ```
+
+## Usage 
+
+TODO : Add usage example
 
 ## Contributing
 
