@@ -2,9 +2,25 @@
 version: '3'
 
 tasks:
-  build:
+  build-all:
     vars:
       OUTPUT_PATH: bin/xltemplate
     cmds:
-      - go build -v -o {{.OUTPUT_PATH}} do3b/xltemplate
-      - chmod +x {{.OUTPUT_PATH}}
+      - go install do3b/xltemplate
+      - for: 
+          matrix:
+            OS: [windows, linux, darwin]
+            ARCH: [amd64, arm64]
+        cmd: >
+          GOOS={{.ITEM.OS}}
+          GOARCH={{.ITEM.ARCH}}
+          go build -v -o
+          {{.OUTPUT_PATH}}-{{.ITEM.OS}}-{{.ITEM.ARCH}}
+          do3b/xltemplate
+    build:
+      vars:
+        OUTPUT_PATH: bin/xltemplate
+      cmds:
+        - go install do3b/xltemplate
+        - go build -v -o {{.OUTPUT_PATH}} do3b/xltemplate
+        - chmod +x {{.OUTPUT_PATH}}
