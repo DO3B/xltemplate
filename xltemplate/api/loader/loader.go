@@ -6,7 +6,6 @@ package loader
 
 import (
 	"do3b/xltemplate/api/git"
-	"fmt"
 	"path/filepath"
 
 	"sigs.k8s.io/kustomize/kyaml/errors"
@@ -35,7 +34,6 @@ func NewLoader(
 			cleanedTarget = filepath.Base(target)
 		}
 		root, _, err = fSys.CleanedAbs(target)
-		fmt.Println("root", root)
 	} else {
 		root, err = filesys.ConfirmDir(fSys, target)
 	}
