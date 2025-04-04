@@ -32,7 +32,7 @@ task build
 
 ## Usage 
 
-TODO : Add usage example
+> Samples are inside the sample folder: [sample/](sample/)
 
 ## Contributing
 
