@@ -17,10 +17,10 @@ tasks:
           go build -v -o
           {{.OUTPUT_PATH}}-{{.ITEM.OS}}-{{.ITEM.ARCH}}
           do3b/xltemplate
-    build:
-      vars:
-        OUTPUT_PATH: bin/xltemplate
-      cmds:
-        - go install do3b/xltemplate
-        - go build -v -o {{.OUTPUT_PATH}} do3b/xltemplate
-        - chmod +x {{.OUTPUT_PATH}}
+  build:
+    vars:
+      OUTPUT_PATH: bin/xltemplate
+    cmds:
+      - go install do3b/xltemplate
+      - go build -v -o {{.OUTPUT_PATH}} do3b/xltemplate
+      - chmod +x {{.OUTPUT_PATH}}

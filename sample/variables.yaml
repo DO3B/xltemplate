@@ -1,3 +1,6 @@
+:includes:
+- common.yaml
+
 version: 1.0.0
 books:
   - title: Birth
