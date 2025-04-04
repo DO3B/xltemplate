@@ -6,7 +6,8 @@ package loader
 
 import (
 	"do3b/xltemplate/api/git"
-	"log/slog"
+	"fmt"
+	"path/filepath"
 
 	"sigs.k8s.io/kustomize/kyaml/errors"
 	"sigs.k8s.io/kustomize/kyaml/filesys"
@@ -28,9 +29,13 @@ func NewLoader(
 			repoSpec, fSys, nil, git.ClonerUsingGitExec)
 	}
 	var root filesys.ConfirmedDir
+	cleanedTarget := target
 	if !fSys.IsDir(target) {
-		slog.Debug("toto")
+		if !IsRemoteFile(target) {
+			cleanedTarget = filepath.Base(target)
+		}
 		root, _, err = fSys.CleanedAbs(target)
+		fmt.Println("root", root)
 	} else {
 		root, err = filesys.ConfirmDir(fSys, target)
 	}
@@ -39,5 +44,5 @@ func NewLoader(
 		return nil, errors.WrapPrefixf(err, ErrRtNotDir.Error()) //nolint:govet
 	}
 	return newLoaderAtConfirmedDir(
-		lr, root, fSys, nil, git.ClonerUsingGitExec, target), nil
+		lr, root, fSys, nil, git.ClonerUsingGitExec, cleanedTarget), nil
 }

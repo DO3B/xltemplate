@@ -94,6 +94,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 		variables, err = loadYamlFromFile(opts.Variables)
 		if err != nil {
 			slog.Error("Error loading variables", "error", err)
+			panic(err)
 		}
 
 		if variable, exists := variables[":includes"]; exists {
@@ -106,11 +107,12 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 					includedVariables = append(includedVariables, includedVariable)
 					if err != nil {
 						slog.Error("Error loading included variables", "error", err)
+						panic(err)
 					}
 				}
 			} else {
 				slog.Error("Includes must be a list", "includes", variable)
-				fmt.Println("Includes must be a list")
+				panic(":includes must be a list")
 			}
 
 			for _, includedVariable := range includedVariables {
