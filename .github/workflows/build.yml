@@ -1,0 +1,30 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      id: go
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4
+    - name: Download Go modules
+      run: go mod download
+      env:
+        GOPROXY: https://proxy.golang.org
+    - name: Build
+      run: |
+        go build -v -o bin/xltemplate do3b/xltemplate
+
