@@ -91,22 +91,39 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 
 	variables := map[string]interface{}{}
 	if opts.Variables != "" {
-		file, err := os.Open(opts.Variables)
+		variables, err = loadYamlFromFile(opts.Variables)
 		if err != nil {
-			fmt.Println(err)
+			slog.Error("Error loading variables", "error", err)
+			panic(err)
 		}
-		defer file.Close()
-		fileinfo, err := file.Stat()
-		if err != nil {
-			fmt.Println(err)
-		}
-		filesize := fileinfo.Size()
-		buffer := make([]byte, filesize)
-		file.Read(buffer)
 
-		yaml.Unmarshal(buffer, &variables)
-		//Convert decoded yaml value so nested map are all map[string]{interface} instead of map[interface{}]interface{}
-		variables, err = maputil.CastKeysToStrings(variables)
+		if variable, exists := variables[":includes"]; exists {
+			// Convert decoded yaml value so nested map are all map[string]{interface} instead of map[interface{}]interface{}
+			slog.Debug("Includes found in variables", ":includes", variable)
+			var includedVariables []map[string]interface{}
+			if list, ok := variable.([]interface{}); ok {
+				for _, item := range list {
+					includedVariable, err := loadYamlFromFile(item.(string))
+					includedVariables = append(includedVariables, includedVariable)
+					if err != nil {
+						slog.Error("Error loading included variables", "error", err)
+						panic(err)
+					}
+				}
+			} else {
+				slog.Error("Includes must be a list", "includes", variable)
+				panic(":includes must be a list")
+			}
+
+			for _, includedVariable := range includedVariables {
+				if err := mergo.Merge(&variables, includedVariable); err != nil {
+					slog.Error("Error merging included variables", "error", err)
+				}
+			}
+
+			delete(variables, ":includes")
+			slog.Debug("Merged variables", "variables", variables)
+		}
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -184,4 +201,29 @@ func readPatternDirectory(path string) []string {
 	}
 
 	return parsedFiles
+}
+
+func loadYamlFromFile(filePath string) (map[string]interface{}, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	var result map[string]interface{}
+	err = yaml.Unmarshal(data, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
+	}
+
+	result, err = maputil.CastKeysToStrings(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cast keys to strings: %w", err)
+	}
+	return result, nil
 }
