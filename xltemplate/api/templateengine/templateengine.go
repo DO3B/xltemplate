@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"text/template"
 
+	"do3b/xltemplate/api/utils"
+
 	"github.com/Masterminds/sprig/v3"
 )
 
@@ -60,6 +62,8 @@ func (templateEngine *TemplateEngine) Parse() (string, error) {
 	if err != nil {
 		panic(err)
 	}
+
+	utils.NoValueScan(result.String())
 
 	return result.String(), nil
 }
