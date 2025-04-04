@@ -28,10 +28,11 @@ func NewCmdVersion(fileSystem filesys.FileSystem, w io.Writer) *cobra.Command {
 	opts := buildFlags{}
 
 	cmd := cobra.Command{
-		Use:     "build",
-		Short:   "Build a template file",
-		Long:    `Build a template file from a source file, patterns and a set of variables.`,
-		Example: `xltemplate build xltemplate.yaml`,
+		Use:          "build",
+		Short:        "Build a template file",
+		Long:         `Build a template file from a source file, patterns and a set of variables.`,
+		Example:      `xltemplate build xltemplate.yaml`,
+		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			xltemplateFile := buildFlags{}
 			if len(args) > 0 && args[0] != "" {
@@ -94,7 +95,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 		variables, err = loadYamlFromFile(opts.Variables)
 		if err != nil {
 			slog.Error("Error loading variables", "error", err)
-			panic(err)
+			return err
 		}
 
 		if variable, exists := variables[":includes"]; exists {
@@ -107,7 +108,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 					includedVariables = append(includedVariables, includedVariable)
 					if err != nil {
 						slog.Error("Error loading included variables", "error", err)
-						panic(err)
+						return err
 					}
 				}
 			} else {
@@ -124,9 +125,6 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 			delete(variables, ":includes")
 			slog.Debug("Merged variables", "variables", variables)
 		}
-		if err != nil {
-			fmt.Println(err)
-		}
 	}
 
 	source := ""
@@ -137,11 +135,11 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 			fileSystem,
 		)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		b, err := source_loader.Load(source_loader.FilePath)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		source = string(b)
 	}
@@ -152,7 +150,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 		pattern_loader.Cleanup()
 	}
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	var output = os.Stdout
@@ -160,7 +158,7 @@ func Run(opts buildFlags, fileSystem filesys.FileSystem, w io.Writer) error {
 		slog.Info("Writing to file", "file", opts.Output)
 		newFile, err := os.Create(opts.Output)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		output = newFile
 	}
