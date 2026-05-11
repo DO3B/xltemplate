@@ -2,12 +2,9 @@ module do3b/xltemplate
 
 go 1.24.1
 
-require sigs.k8s.io/kustomize/kyaml v0.19.0
+require sigs.k8s.io/kustomize/kyaml v0.21.1
 
-require (
-	github.com/rogpeppe/go-internal v1.12.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-)
+require gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
