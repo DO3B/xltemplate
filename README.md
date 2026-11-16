@@ -47,7 +47,7 @@ Variables allow you to customize your templates by injecting dynamic data. They 
         enabled: false
     ```
 -   **Usage in Templates:** Variables are accessed in your Go templates using dot notation (e.g., `{{ .projectName }}`, `{{ .version }}`, `{{ range .features }}{{ .name }}{{ end }}`).
--   **Includes:** The variables file can also contain a special `:includes:` key. This key takes a list of other YAML file paths that will be merged into the main variables structure. This allows for better organization and reuse of common variable definitions. Files listed later in the `:includes:` list will override values from earlier ones if keys conflict.
+-   **Includes:** The variables file can also contain a special `:includes` key. This key takes a list of other YAML file paths that will be merged into the main variables structure, allowing for better organization and reuse of common variable definitions.
 
 ### 3. Patterns (Template Libraries)
 
@@ -60,8 +60,8 @@ Patterns provide a way to include and reuse other templates, often referred to a
       - "path/to/local/library_directory/"
       - "https://github.com/user/repo///path/to/libs/?ref=main"
     ```
--   **Structure:** All template files (typically `.tmpl` or `.tpl` files) within the specified pattern directories become available for inclusion.
--   **Usage:** You can include these library templates in your main template (or other library templates) using the `{{ include "templateName" . }}` directive. The `templateName` corresponds to the filename of the library template (without the extension). For instance, a file named `_header.tmpl` in a pattern directory would be included as `{{ include "_header" . }}`. You can pass data (context) to the included template.
+-   **Recursive Structure:** All template files within the specified pattern directories (including subdirectories, scanned recursively) are parsed and made available for inclusion.
+-   **Usage:** Library templates typically define named blocks using `{{ define "templateName" }}...{{ end }}`. You can include these templates in your main template (or recursively from other library templates) using the `{{ include "templateName" . }}` function, passing the desired context.
 
 ### 4. Output Specification
 
@@ -82,11 +82,11 @@ You can install XLTemplate in the following ways:
 
 ### 1. Build from Source
 
-Ensure you have Go installed on your system.
+Ensure you have Go installed on your system. From the root of the cloned repository:
 
 ```bash
 # To install the binary to your GOPATH/bin
-go install do3b/xltemplate@latest
+go install do3b/xltemplate
 
 # Alternatively, to build the binary in the current directory
 go build -v -o xltemplate do3b/xltemplate
@@ -98,9 +98,40 @@ Make sure your `GOPATH/bin` is in your system's `PATH` environment variable if y
 If you have [Task](https://taskfile.dev/) installed, you can build the project using the provided `Taskfile.yml`:
 
 ```bash
+# Build for the current platform (outputs to bin/xltemplate)
 task build
+
+# Cross-compile for linux, darwin, and windows (amd64 & arm64) into bin/
+task build-all
 ```
-This typically places the compiled `xltemplate` binary in the project's root directory.
+
+## CLI Reference
+
+```text
+xltemplate [command] [flags]
+```
+
+### Commands
+
+-   **`xltemplate build [xltemplate.yaml]`**: Build and render a template from a configuration file, CLI flags, or a combination of both. When both an `xltemplate.yaml` file and CLI flags are provided, CLI flags take precedence (and `--patterns` appends to patterns defined in the file).
+-   **`xltemplate version`**: Print the `xltemplate` version.
+
+### Flags
+
+#### `build` Flags
+
+| Flag | Type | Description |
+| :--- | :--- | :--- |
+| `--source` | `string` | Source template file path or Git URL to parse |
+| `--variables` | `string` | Path to the variables YAML file |
+| `--patterns` | `stringArray` | Path or Git URL to a patterns directory (can be specified multiple times) |
+| `--output` | `string` | Output file path (optional; writes to `stdout` if omitted) |
+
+#### Global Flags
+
+| Flag | Short | Description |
+| :--- | :--- | :--- |
+| `--verbose` | `-v` | Enable verbose (`DEBUG` level) logging output |
 
 ## Usage
 
@@ -128,7 +159,7 @@ output: template.yaml
 
 This is the main template file referenced by the `source` field in `xltemplate.yaml`.
 
-```html
+```gotmpl
 Template inclusion compatible with sprig functions
 {{include "library" .books}}
 
@@ -136,13 +167,14 @@ Trigger {{.missing}} warning
 ```
 
 - It uses Go template syntax.
-- `{{include "library" .books}}` includes a library template named "library" (defined in `sample/lib/library.tmpl`) and passes the `.books` variable to it.
-- `{{.missing}}` demonstrates a variable that might not be defined, which would result in a warning during processing.
+- `{{include "library" .books}}` includes a library template named `"library"` (defined in `sample/lib/library.tmpl`) and passes the `.books` variable to it.
+- `{{.missing}}` demonstrates a variable that is not defined, which triggers a `<no value>` warning during processing.
 
-### 3. Variables File (`sample/variables.yaml`)
+### 3. Variables Files (`sample/variables.yaml` & `sample/common.yaml`)
 
-This file defines the variables that will be available in the templates.
+These files define the variables that will be available in the templates.
 
+`sample/variables.yaml`:
 ```yaml
 :includes:
 - common.yaml
@@ -159,15 +191,21 @@ books:
       - G. Faletti
 ```
 
-- **:includes:** (Optional) A special key to include other YAML files. In this case, it attempts to include `common.yaml` (which might not exist in this minimal example, illustrating the feature).
+`sample/common.yaml`:
+```yaml
+test: false
+```
+
+- **:includes:** (Optional) A special key to include and merge other YAML files (here, `sample/common.yaml`).
 - **version:** A simple string variable.
 - **books:** A list of book objects, each with a `title`, optional `collection`, and a list of `authors`.
 
-### 4. Library Template File (`sample/lib/library.tmpl`)
+### 4. Library Template Files (`sample/lib/library.tmpl` & `sample/lib/recurse/authors.tmpl`)
 
-This file defines a reusable template library. Files in directories specified under `patterns` in `xltemplate.yaml` are treated as library templates.
+Files in directories specified under `patterns` in `xltemplate.yaml` are loaded recursively as library templates.
 
-```html
+`sample/lib/library.tmpl`:
+```gotmpl
 {{define "library"}}
 {{- range .}}
 {{.title}}{{with .collection}} (Part of {{.}} collection){{end}}
@@ -176,22 +214,32 @@ This file defines a reusable template library. Files in directories specified un
 {{end}}
 ```
 
-- `{{define "library"}}...{{end}}` defines a template block named "library". This name is used in the `include` function in `sample/demo.tmpl`.
-- It ranges over a list of items (expected to be the `books` variable).
-- For each item, it displays the `title` and `collection` (if present).
-- It also includes another template named "authors". *Note: The "authors" template is not defined in this sample, which would typically be part of the library to render author information. For this example, we'll assume its absence or it could be added to `library.tmpl` or another file in `lib/`.*
+`sample/lib/recurse/authors.tmpl`:
+```gotmpl
+{{ define "authors" }}
+Written by {{.authors | join ","}}
+{{- end }}
+```
+
+- `{{define "library"}}...{{end}}` defines a template block named `"library"`, which is invoked by `include` in `sample/demo.tmpl`.
+- It ranges over the list of books, displaying each book's `title` and `collection` (if present).
+- It recursively includes the `"authors"` template defined in `sample/lib/recurse/authors.tmpl`, which uses Sprig's `join` function to format the list of authors.
 
 ### 5. Running `xltemplate`
 
 To generate the output based on the sample configuration, navigate to the `sample` directory and run the following command:
 
 ```bash
+xltemplate build xltemplate.yaml
+# Or directly with go run:
 go run ../xltemplate/main.go build xltemplate.yaml
 ```
 
-This command tells `xltemplate` to:
-- Use the `build` subcommand.
-- Load its configuration from the `xltemplate.yaml` file in the current directory (`sample/`).
+You can also pass or override options via CLI flags:
+
+```bash
+xltemplate build xltemplate.yaml --output custom-output.yaml --verbose
+```
 
 ### 6. Expected Output (`sample/template.yaml`)
 
@@ -212,7 +260,7 @@ Written by G. Faletti
 Trigger <no value> warning
 ```
 
-This output is the result of processing `sample/demo.tmpl` with the variables from `sample/variables.yaml` and the library templates from `sample/lib/`. The `{{.missing}}` variable in `demo.tmpl` resulted in the "Trigger <no value> warning" line. The authors are not fully rendered as the `authors` template was not defined.
+This output is the result of processing `sample/demo.tmpl` with the variables from `sample/variables.yaml` (and `sample/common.yaml`) and the library templates from `sample/lib/` (including `sample/lib/recurse/authors.tmpl`). The undefined `{{.missing}}` variable in `demo.tmpl` produces the `Trigger <no value> warning` line and logs a warning during execution.
 
 ## Contributing
 
